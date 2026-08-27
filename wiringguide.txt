@@ -1,0 +1,19 @@
+Your arduino must have a DAC.
+
+SD Card Module to Arduino: 
+
+Gnd to Gnd
+VCC to Vin
+MISO to 12
+MCSI to 11
+SCK to 13
+CS to 10
+
+Arduino to earbuds plug (the earbuds have three sections):
+
+The tip is for the left earbud while the middle is for the right earbud, these two can touch each other, if the wire slips
+off one of these, then music won't be heard through the corresponding earbud. 
+These two connect to a small ceramic capacitor (like 104) and a resistor maybe? and then to the A0 pin of the arduino.
+
+The bottom of the plug is gnd so it connects directly to the arduino gnd.
+You can just strip the wires and wrap them around the plug. 
