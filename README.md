@@ -18,3 +18,5 @@ and ill not fdo it.
 <img width="450" height="444" alt="microsd" src="https://github.com/user-attachments/assets/6e39e12f-b482-4be1-a1af-b15e7a450dbf" />
 
 I was using a 100uf capacitor and it sounded so bad but then i switched to a ceramic one and oh my god thats all it was that took me like 6-7 hours to figure out.
+
+Files must be converted to 16 Bit WAV files https://g711.org/ go to this website and then select "High Definition WAV (16Khz, Mono, 16-Bit PCM)"
