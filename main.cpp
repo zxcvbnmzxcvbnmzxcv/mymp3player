@@ -9,6 +9,47 @@ SdFat sd;
 FsFile audioFile;
 uint8_t audioBuffer[BUFFER_SIZE];
 
+Playlist playlists[] = {
+    {"Banjo", banjo,5},
+    {"Persona",persona,5},
+    {"Tuff",tuff,5},
+    {"Jazz",jazz,5},
+}
+
+const char* banjo[] = {
+    "/songs/mumbo.wav",
+    "/songs/peak.wav",
+    "/songs/intro.wav",
+    "/songs/cove.wav",
+    "/songs/spiral.wav"
+};
+
+const char* persona[] = {
+    "/songs/lastsurprise.wav",
+    "/songs/burnmydread.wav",
+    "/songs/trueself.wav",
+    "/songs/mass.wav",
+    "/songs/shadowworld.wav"
+};
+
+const char* tuff[] = {
+    "/songs/verity.wav",
+};
+
+const char* jazz[] = {
+    "/songs/rhumba.wav",
+    "/songs/spain.wav",
+    "/songs/nutville.wav",
+    "/songs/.wav",
+    "/songs/footprints.wav"
+};
+
+
+
+
+
+
+
 void setup() {
 Serial.begin(115200);
 while (!Serial);
