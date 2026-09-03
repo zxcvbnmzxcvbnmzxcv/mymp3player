@@ -1,5 +1,13 @@
 #include <SPI.h>
 #include <SdFat.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+const int JOYSTICK_Y = A1;
+const int BUTTON_A = 2;
+const int BUTTON_B = 3;
 
 #define SD_CS_PIN 10
 #define DAC_PIN A0
@@ -51,6 +59,7 @@ const char* jazz[] = {
 
 
 void setup() {
+
 Serial.begin(115200);
 while (!Serial);
 
@@ -98,8 +107,68 @@ delayMicroseconds(62);
 
 audioFile.close();
 Serial.println("Playback finished.");
+
+
 }
+
+
+
 
 void loop() {
+  int joystickValue = analogRead(JOYSTICK_Y);
+
+  if (joystickValue < 300 && lastJoystick >= 300) {
+    selectedItem--;
+
+    if (selectedItem < 0) {
+      selectedItem = MENU_COUNT - 1;
+    }
+
+  }
+
+
+  if (joystickValue > 700 && lastJoystick <= 700) {
+    selectedItem++;
+
+    if (selectedItem >= MENU_COUNT) {
+      selectedItem = 0;
+    }
+
+  }
+
+  lastJoystick = joystickValue;
+
+  if (digitalRead(BUTTON_A) == LOW) {
+    delay(200);
+
+    if (selectedItem == 0) {
+    
+
+    } else if (selectedItem == 1) {
+      
+
+    } else if (selectedItem == 2) {
+      
+
+    }
+
+    
+  }
+
+  
+  if (digitalRead(BUTTON_B) == LOW) {
+    delay(200);
+    
+
+  }
+
+
+
+
 
 }
+
+
+
+
+
