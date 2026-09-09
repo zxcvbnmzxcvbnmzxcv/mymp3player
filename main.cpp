@@ -77,17 +77,6 @@ Serial.println("Failed to open song1.wav!");
 return;
 }
 
-if(True){
-  bool playlistSelected = false;
-  lcd.print("Choose a playlist: ");
-  if(True && !playlistSelected) {
-    
-      
-    }
-
-  }
-}
-
 
 
 }
@@ -181,7 +170,91 @@ delayMicroseconds(62);
 audioFile.close();
 Serial.println("Playback finished.");
 
+
+
+while(True){
+  bool playlistSelected = false;
+  curr playlist = 0;
+  lcd.print("Choose a playlist: ");
+  while(True){
+
+    case selectedItem == 0:
+      lcd.print("Banjo");
+      while(True){
+        if (digitalRead(BUTTON_A) == LOW) {
+          delay(200);
+          playlistSelected = true;
+          break;
+        if (selectedItem != 0) {
+            lcd.clear();
+            break;
+          }
+      }
+      break;
+
+      case selectedItem == 1:
+      lcd.print("Persona");
+      while(True){
+        if (digitalRead(BUTTON_A) == LOW) {
+          delay(200);
+          playlistSelected = true;
+          break;
+        if (selectedItem != 1) {
+            lcd.clear();
+            break;
+          }
+      }
+      break;
+
+      case selectedItem == 2:
+      lcd.print("Tuff");
+      while(True){
+        if (digitalRead(BUTTON_A) == LOW) {
+          delay(200);
+          playlistSelected = true;
+          break;
+        if (selectedItem != 2) {
+            lcd.clear();
+            break;
+          }
+      }
+      break;
+
+      case selectedItem == 3:
+      lcd.print("Jazz");
+      while(True){
+        if (digitalRead(BUTTON_A) == LOW) {
+          delay(200);
+          playlistSelected = true;
+          playSong(playlists[currPlaylist].songs[0]);
+          break;
+        if (selectedItem != 3) {
+            lcd.clear();
+            break;
+          }
+      }
+      break;
+
+
+
+
+
+    
+
+
+
+  }
+    
+      
+    }
+
+  }
 }
+
+
+}
+
+
 
 
 
