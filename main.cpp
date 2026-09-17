@@ -10,8 +10,9 @@
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 const uint8_t sticky = A1;
-const uint8_t abutton = 2;
-const uint8_t bbutton = 3;
+const uint8_t selectPot = A2;
+const uint8_t bbutton = 3; // Joystick push switch
+const uint16_t POT_TURN_AMOUNT = 100;
 const uint8_t SD_CS_PIN = 10;
 const uint8_t DAC_PIN = A0;
 const uint16_t BUFFER_SIZE = 512;
@@ -20,9 +21,9 @@ const uint16_t BUFFER_SIZE = 512;
 
 #pragma region Playlists
 const char* banjoSongs[] = {
-  "/songs/banjo/mumbo.wav",
-  "/songs/banjo/peak.wav",
-  "/songs/banjo/intro.wav",
+  "/songs/banjo/mumbo.wav",  // ok
+  "/songs/banjo/peak.wav",   // ok
+  "/songs/banjo/intro.wav", // ok
   "/songs/banjo/cove.wav",
   "/songs/banjo/spiral.wav"
 };
@@ -70,6 +71,7 @@ const uint8_t PLAYLIST_COUNT = sizeof(playlists) / sizeof(playlists[0]);
 SdFat sd;
 uint8_t audioBuffer[BUFFER_SIZE];
 int lastJoystick = 512;
+int potReferenceValue = 512;
 uint8_t selectedItem = 0;
 
 
@@ -84,6 +86,16 @@ bool pressed(uint8_t pin) {
   while (digitalRead(pin) == LOW) {
     delay(5);
   }
+  return true;
+}
+
+bool potTurned() {
+  int potValue = analogRead(selectPot);
+  if (abs(potValue - potReferenceValue) < POT_TURN_AMOUNT) {
+    return false;
+  }
+
+  potReferenceValue = potValue;
   return true;
 }
 
@@ -161,7 +173,7 @@ void chooseSong(uint8_t playlistIndex) {
       showItem(playlist.songs[selectedItem] + 7, selectedItem, playlist.songCount);
     }
 
-    if (pressed(abutton)) {
+    if (potTurned()) {
       playSong(playlist.songs[selectedItem]);
       showItem(playlist.songs[selectedItem] + 7, selectedItem, playlist.songCount);
     }
@@ -174,8 +186,8 @@ void chooseSong(uint8_t playlistIndex) {
 
 void setup() {
   Serial.begin(115200);
-  pinMode(abutton, INPUT_PULLUP);
   pinMode(bbutton, INPUT_PULLUP);
+  potReferenceValue = analogRead(selectPot);
   analogWriteResolution(12);
 
   lcd.init();
@@ -200,7 +212,7 @@ void loop() {
       showItem(playlists[selectedItem].name, selectedItem, PLAYLIST_COUNT);
     }
 
-    if (pressed(abutton)) {
+    if (potTurned()) {
       uint8_t playlistIndex = selectedItem;
       chooseSong(playlistIndex);
       selectedItem = playlistIndex;
@@ -208,3 +220,63 @@ void loop() {
     }
   }
 }
+
+
+
+
+
+
+
+
+
+// more functions
+void chooserandomsong() {
+  uint8_t randomPlaylistIndex = random(PLAYLIST_COUNT);
+  Playlist& playlist = playlists[randomPlaylistIndex];
+  uint8_t randomSongIndex = random(playlist.songCount);
+  playSong(playlist.songs[randomSongIndex]);
+}
+
+
+void makeplaylist() {
+  lcd.clear();
+  lcd.print("Creating playlist...");
+  delay(1000);
+
+  const char* newPlaylistName = "/songs/newplaylist";
+  if (!sd.mkdir(newPlaylistName)) {
+    lcd.clear();
+    lcd.print("Failed to create");
+    lcd.setCursor(0, 1);
+    lcd.print("playlist");
+    delay(2000);
+    return;
+  }
+
+  lcd.clear();
+  lcd.print("Playlist created");
+  delay(2000);
+}
+
+void randomizeplaylist() {
+  lcd.clear();
+  lcd.print("Randomizing...");
+  delay(1000);
+
+  for (uint8_t i = 0; i < PLAYLIST_COUNT; i++) {
+    Playlist& playlist = playlists[i];
+    for (uint8_t j = 0; j < playlist.songCount; j++) {
+      uint8_t randomIndex = random(playlist.songCount);
+      const char* temp = playlist.songs[j];
+      playlist.songs[j] = playlist.songs[randomIndex];
+      playlist.songs[randomIndex] = temp;
+    }
+  }
+
+  lcd.clear();
+  lcd.print("Randomized!");
+  delay(2000);
+}
+
+
+
