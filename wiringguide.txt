@@ -1,13 +1,18 @@
 Your arduino must have a DAC.
 
-SD Card Module to Arduino: 
+SD Card Module to Arduino Uno R4 WiFi:
 
-Gnd to Gnd
-VCC to Vin
+GND to GND
+VCC to 5V only if the module supports 5V; otherwise follow its 3.3V power and level-shifting requirements. Do not connect VCC to VIN.
 MISO to 12
-MCSI to 11
+MOSI to 11
 SCK to 13
 CS to 10
+
+Controls:
+Joystick push switch (A) to pin 8; wire the other side to GND.
+Connect the separate B button between pin 9 and GND.
+Both button inputs use INPUT_PULLUP, so no external pull-up resistors are needed.
 
 Arduino to earbuds plug (the earbuds have three sections):
 

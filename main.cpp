@@ -1,18 +1,14 @@
 #include <SPI.h>
 #include <SdFat.h>
-#include <Wire.h>
-#include <LiquidCrystal_I2C.h>
+#include <LiquidCrystal.h>
 
 #pragma region Pin Definitions
 
-
-
-LiquidCrystal_I2C lcd(0x27, 16, 2);
+LiquidCrystal lcd(2, 3, 4, 5, 6, 7);
 
 const uint8_t sticky = A1;
-const uint8_t selectPot = A2;
-const uint8_t bbutton = 3; // Joystick push switch
-const uint16_t POT_TURN_AMOUNT = 100;
+const uint8_t joystickButton = 8;
+const uint8_t bbutton = 9;
 const uint8_t SD_CS_PIN = 10;
 const uint8_t DAC_PIN = A0;
 const uint16_t BUFFER_SIZE = 512;
@@ -21,9 +17,9 @@ const uint16_t BUFFER_SIZE = 512;
 
 #pragma region Playlists
 const char* banjoSongs[] = {
-  "/songs/banjo/mumbo.wav",  // ok
-  "/songs/banjo/peak.wav",   // ok
-  "/songs/banjo/intro.wav", // ok
+  "/songs/banjo/mumbo.wav",
+  "/songs/banjo/peak.wav",
+  "/songs/banjo/intro.wav",
   "/songs/banjo/cove.wav",
   "/songs/banjo/spiral.wav"
 };
@@ -47,10 +43,7 @@ const char* jazzSongs[] = {
   "/songs/jazz/nutville.wav",
   "/songs/jazz/footprints.wav"
 };
-
 #pragma endregion
-
-
 
 struct Playlist {
   const char* name;
@@ -65,41 +58,72 @@ Playlist playlists[] = {
   {"Jazz", jazzSongs, sizeof(jazzSongs) / sizeof(jazzSongs[0])}
 };
 
-
 const uint8_t PLAYLIST_COUNT = sizeof(playlists) / sizeof(playlists[0]);
 
 SdFat sd;
 uint8_t audioBuffer[BUFFER_SIZE];
 int lastJoystick = 512;
-int potReferenceValue = 512;
 uint8_t selectedItem = 0;
 
+enum {
+  JOYSTICK_NONE,
+  JOYSTICK_A_SINGLE,
+  JOYSTICK_A_DOUBLE
+};
 
+uint8_t readJoystickAction(uint8_t pin) {
+  static bool buttonWasDown = false;
+  static uint32_t firstPressMillis = 0;
+  static uint32_t lastReleaseMillis = 0;
+  static bool waitingForSecondClick = false;
+  static bool suppressNextRelease = false;
 
+  uint32_t now = millis();
+  bool buttonDown = (digitalRead(pin) == LOW);
 
-bool pressed(uint8_t pin) {
-  if (digitalRead(pin) != LOW) {
+  if (buttonDown && !buttonWasDown) {
+    buttonWasDown = true;
+    if (waitingForSecondClick && now - lastReleaseMillis <= 300) {
+      waitingForSecondClick = false;
+      suppressNextRelease = true;
+      return JOYSTICK_A_DOUBLE;
+    }
+    firstPressMillis = now;
+  }
+
+  if (!buttonDown && buttonWasDown) {
+    buttonWasDown = false;
+    if (suppressNextRelease) {
+      suppressNextRelease = false;
+    } else if ((now - firstPressMillis) <= 250) {
+      waitingForSecondClick = true;
+      lastReleaseMillis = now;
+    }
+  }
+
+  if (waitingForSecondClick && now - lastReleaseMillis > 300) {
+    waitingForSecondClick = false;
+    return JOYSTICK_A_SINGLE;
+  }
+
+  return JOYSTICK_NONE;
+}
+
+bool readButtonBPress(uint8_t pin) {
+  static bool buttonWasDown = false;
+  static uint32_t lastStateChangeMillis = 0;
+
+  bool buttonDown = (digitalRead(pin) == LOW);
+  if (buttonDown == buttonWasDown || millis() - lastStateChangeMillis < 30) {
     return false;
   }
 
-  delay(25);
-  while (digitalRead(pin) == LOW) {
-    delay(5);
-  }
-  return true;
+  buttonWasDown = buttonDown;
+  lastStateChangeMillis = millis();
+  return buttonDown;
 }
 
-bool potTurned() {
-  int potValue = analogRead(selectPot);
-  if (abs(potValue - potReferenceValue) < POT_TURN_AMOUNT) {
-    return false;
-  }
-
-  potReferenceValue = potValue;
-  return true;
-}
-
-void showItem(const char* title, uint8_t index, uint8_t count) {
+void showPlaylistItem(const char* title, uint8_t index, uint8_t count) {
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print(title);
@@ -107,7 +131,18 @@ void showItem(const char* title, uint8_t index, uint8_t count) {
   lcd.print(index + 1);
   lcd.print("/");
   lcd.print(count);
-  lcd.print(" A=select");
+  lcd.print(" D=sel S=rnd");
+}
+
+void showSongItem(const char* title, uint8_t index, uint8_t count) {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print(title);
+  lcd.setCursor(0, 1);
+  lcd.print(index + 1);
+  lcd.print("/");
+  lcd.print(count);
+  lcd.print(" D=play S=rnd");
 }
 
 bool moveSelection(uint8_t itemCount) {
@@ -128,6 +163,7 @@ bool moveSelection(uint8_t itemCount) {
 
 void playSong(const char* filename) {
   FsFile audioFile;
+
   if (!audioFile.open(filename, O_RDONLY)) {
     lcd.clear();
     lcd.print("Open failed");
@@ -137,7 +173,6 @@ void playSong(const char* filename) {
     return;
   }
 
-  // Skip the WAV header. The supported files are 16-bit PCM WAV files.
   uint8_t header[44];
   if (audioFile.read(header, sizeof(header)) != sizeof(header)) {
     audioFile.close();
@@ -148,14 +183,26 @@ void playSong(const char* filename) {
   lcd.print("Playing...");
   lcd.setCursor(0, 1);
   lcd.print(filename + 7);
+  Serial.print("Playing: ");
+  Serial.println(filename);
+  uint32_t lastStatusMillis = millis();
 
   while (audioFile.available()) {
     int bytesRead = audioFile.read(audioBuffer, BUFFER_SIZE);
     for (int i = 0; i + 1 < bytesRead; i += 2) {
       int16_t sample = (int16_t)((audioBuffer[i + 1] << 8) | audioBuffer[i]);
-      uint16_t dacValue = (uint16_t)(((int32_t)sample + 32768) >> 4);
+      int32_t amplifiedSample = ((int32_t)sample * 3) / 2;
+      if (amplifiedSample > 32767) amplifiedSample = 32767;
+      if (amplifiedSample < -32768) amplifiedSample = -32768;
+      uint16_t dacValue = (uint16_t)((amplifiedSample + 32768) >> 4);
       analogWrite(DAC_PIN, dacValue);
-      delayMicroseconds(62); // approximately 16 kHz
+      delayMicroseconds(62);
+    }
+
+    if (millis() - lastStatusMillis >= 5000) {
+      Serial.print("Playing: ");
+      Serial.println(filename);
+      lastStatusMillis = millis();
     }
   }
 
@@ -163,73 +210,6 @@ void playSong(const char* filename) {
   analogWrite(DAC_PIN, 2048);
 }
 
-void chooseSong(uint8_t playlistIndex) {
-  Playlist& playlist = playlists[playlistIndex];
-  selectedItem = 0;
-  showItem(playlist.songs[selectedItem] + 7, selectedItem, playlist.songCount);
-
-  while (true) {
-    if (moveSelection(playlist.songCount)) {
-      showItem(playlist.songs[selectedItem] + 7, selectedItem, playlist.songCount);
-    }
-
-    if (potTurned()) {
-      playSong(playlist.songs[selectedItem]);
-      showItem(playlist.songs[selectedItem] + 7, selectedItem, playlist.songCount);
-    }
-
-    if (pressed(bbutton)) {
-      return;
-    }
-  }
-}
-
-void setup() {
-  Serial.begin(115200);
-  pinMode(bbutton, INPUT_PULLUP);
-  potReferenceValue = analogRead(selectPot);
-  analogWriteResolution(12);
-
-  lcd.init();
-  lcd.backlight();
-  lcd.print("Starting...");
-
-  if (!sd.begin(SD_CS_PIN, SD_SCK_MHZ(12))) {
-    lcd.clear();
-    lcd.print("SD init failed");
-    Serial.println("SD initialization failed");
-    while (true) {
-      delay(1000);
-    }
-  }
-}
-
-void loop() {
-  showItem(playlists[selectedItem].name, selectedItem, PLAYLIST_COUNT);
-
-  while (true) {
-    if (moveSelection(PLAYLIST_COUNT)) {
-      showItem(playlists[selectedItem].name, selectedItem, PLAYLIST_COUNT);
-    }
-
-    if (potTurned()) {
-      uint8_t playlistIndex = selectedItem;
-      chooseSong(playlistIndex);
-      selectedItem = playlistIndex;
-      break;
-    }
-  }
-}
-
-
-
-
-
-
-
-
-
-// more functions
 void chooserandomsong() {
   uint8_t randomPlaylistIndex = random(PLAYLIST_COUNT);
   Playlist& playlist = playlists[randomPlaylistIndex];
@@ -237,46 +217,79 @@ void chooserandomsong() {
   playSong(playlist.songs[randomSongIndex]);
 }
 
+void chooseSong(uint8_t playlistIndex) {
+  Playlist& playlist = playlists[playlistIndex];
+  selectedItem = 0;
+  showSongItem(playlist.songs[selectedItem] + 7, selectedItem, playlist.songCount);
 
-void makeplaylist() {
-  lcd.clear();
-  lcd.print("Creating playlist...");
-  delay(1000);
+  while (true) {
+    if (moveSelection(playlist.songCount)) {
+      showSongItem(playlist.songs[selectedItem] + 7, selectedItem, playlist.songCount);
+    }
 
-  const char* newPlaylistName = "/songs/newplaylist";
-  if (!sd.mkdir(newPlaylistName)) {
-    lcd.clear();
-    lcd.print("Failed to create");
-    lcd.setCursor(0, 1);
-    lcd.print("playlist");
-    delay(2000);
-    return;
+    uint8_t action = readJoystickAction(joystickButton);
+
+    if (action == JOYSTICK_A_DOUBLE) {
+      playSong(playlist.songs[selectedItem]);
+      showSongItem(playlist.songs[selectedItem] + 7, selectedItem, playlist.songCount);
+    }
+
+    if (action == JOYSTICK_A_SINGLE) {
+      chooserandomsong();
+      showSongItem(playlist.songs[selectedItem] + 7, selectedItem, playlist.songCount);
+    }
+
+    if (readButtonBPress(bbutton)) {
+      return;
+    }
   }
-
-  lcd.clear();
-  lcd.print("Playlist created");
-  delay(2000);
 }
 
-void randomizeplaylist() {
-  lcd.clear();
-  lcd.print("Randomizing...");
+void setup() {
+  Serial.begin(9600);
   delay(1000);
+  analogWriteResolution(12);
+  bool sdInitialized = sd.begin(SD_CS_PIN, SD_SCK_MHZ(4));
 
-  for (uint8_t i = 0; i < PLAYLIST_COUNT; i++) {
-    Playlist& playlist = playlists[i];
-    for (uint8_t j = 0; j < playlist.songCount; j++) {
-      uint8_t randomIndex = random(playlist.songCount);
-      const char* temp = playlist.songs[j];
-      playlist.songs[j] = playlist.songs[randomIndex];
-      playlist.songs[randomIndex] = temp;
+  if (!sdInitialized) {
+    lcd.begin(16, 2);
+    lcd.clear();
+    lcd.print("SD init failed");
+    Serial.println("SD initialization failed");
+    while (true) {
+      delay(1000);
     }
   }
 
-  lcd.clear();
-  lcd.print("Randomized!");
-  delay(2000);
+  pinMode(joystickButton, INPUT_PULLUP);
+  pinMode(bbutton, INPUT_PULLUP);
+  lcd.begin(16, 2);
+  lcd.print("Starting...");
+  delay(1000);
 }
 
+void loop() {
+  showPlaylistItem(playlists[selectedItem].name, selectedItem, PLAYLIST_COUNT);
 
+  while (true) {
+    if (moveSelection(PLAYLIST_COUNT)) {
+      showPlaylistItem(playlists[selectedItem].name, selectedItem, PLAYLIST_COUNT);
+    }
 
+    uint8_t action = readJoystickAction(joystickButton);
+
+    if (action == JOYSTICK_A_DOUBLE) {
+      uint8_t playlistIndex = selectedItem;
+      chooseSong(playlistIndex);
+      selectedItem = playlistIndex;
+      break;
+    }
+
+    if (action == JOYSTICK_A_SINGLE) {
+      chooserandomsong();
+      break;
+    }
+
+    readButtonBPress(bbutton);
+  }
+}
