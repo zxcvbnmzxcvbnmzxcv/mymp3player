@@ -20,3 +20,13 @@ and ill not fdo it.
 I was using a 100uf capacitor and it sounded so bad but then i switched to a ceramic one and oh my god thats all it was that took me like 6-7 hours to figure out.
 
 Files must be converted to 16 Bit WAV files https://g711.org/ go to this website and then select "High Definition WAV (16Khz, Mono, 16-Bit PCM)"
+
+PCB for the case:
+<img width="1062" height="575" alt="Screenshot 2026-10-15 10 01 05 PM" src="https://github.com/user-attachments/assets/bb839a49-9604-42cd-b3cc-fbe6425d06ca" />
+
+
+
+Final: 
+<img src="https://stardance.hackclub.com/rails/active_storage/representations/proxy/eyJfcmFpbHMiOnsiZGF0YSI6NDY2Nzc3LCJwdXIiOiJibG9iX2lkIn19--a09952c040d8ca0342628373088e63759126831f/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJ3ZWJwIiwicmVzaXplX3RvX2xpbWl0IjpbMTYwMCw5MDBdLCJzYXZlciI6eyJzdHJpcCI6dHJ1ZSwicXVhbGl0eSI6NzV9fSwicHVyIjoidmFyaWF0aW9uIn19--5394ecd620f1b8ee9be71be3f37cd22b8a88953c/IMG_0890.jpeg"/><img width="1200" height="900" alt="image" src="https://github.com/user-attachments/assets/07a546ba-9d28-4aba-9a8d-9d860a6f5f8b" />
+
+
